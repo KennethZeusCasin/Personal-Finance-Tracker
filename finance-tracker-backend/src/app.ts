@@ -1,7 +1,11 @@
 import express from 'express'
 import cors from 'cors'
-import authRoutes from './routes/auth.routes.js'
 import cookieParser from 'cookie-parser'
+
+import authRoutes from './routes/auth.routes.js'
+import accountRoutes from './routes/account.routes.js'
+import categoryRoutes from './routes/category.routes.js'
+import transactionRoutes from './routes/transaction.routes.js'
 
 const app = express()
 
@@ -20,5 +24,8 @@ app.get('/api/health', (req, res) => {
 })
 
 app.use('/api/auth', authRoutes)
+app.use('/api/accounts', accountRoutes)
+app.use('/api/categories', categoryRoutes)
+app.use('/api/transactions', transactionRoutes)
 
 export default app
