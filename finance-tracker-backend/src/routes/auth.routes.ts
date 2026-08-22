@@ -118,7 +118,7 @@ router.post('/login', async (req, res) => {
       httpOnly : true,
       secure   : false,
       sameSite : 'lax',
-      maxAge   : 24 * 60 * 60 * 100
+      maxAge   : 24 * 60 * 60 * 1000
     })
 
     return res.json({
