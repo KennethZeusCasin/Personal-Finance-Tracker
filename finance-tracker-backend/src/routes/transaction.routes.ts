@@ -136,35 +136,123 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
 
 router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        userId: req.user!.userId
-      },
-      include: {
-        account: {
-          select: {
-            id: true,
-            name: true,
-            type: true
+    const userId = req.user!.userId
+
+    const {
+      type,
+      categoryId, 
+      accountId,
+      startDate,
+      endDate,
+      page = '1',
+      limit = '10'
+    } = req.query
+
+    const currentPage = Math.max(Number(page), 1)
+    const itemsPerPage = Math.min(Math.max(Number(limit), 1), 100)
+
+    const skip = (currentPage - 1) * itemsPerPage
+
+    const where: any = {
+      userId
+    }
+
+    //filter by transaction type
+    if(type){
+      if(!['INCOME', 'EXPENSE'].includes(String(type))){
+        return res.status(400).json({
+          success : false,
+          message : 'Type must be INCOME or EXPENSE' 
+        })
+      }
+      where.type = String(type)
+    }
+
+    // filter by category
+    if(categoryId){
+      const categoryIdNumber = Number(categoryId)
+
+      if(Number.isNaN(categoryIdNumber)){
+        return res.status(400).json({
+          success : false,
+          message : 'Invalid category ID.'
+        })
+      }
+      where.categoryId = categoryIdNumber
+    }
+
+    // filter by account
+    if(accountId){
+      const accountIdNumber = Number(accountId)
+
+      if(Number.isNaN(accountIdNumber)){
+        return res.status(400).json({
+          success : false,
+          message : 'Invalid account ID.'
+        })
+      }
+      where.accountId = accountIdNumber
+    }
+
+    // filter by end date
+    if(endDate){
+      const end = new Date(String(endDate))
+
+      end.setHours(23, 59, 59, 999)
+
+      where.transactionDate = {
+        ...(where.transactionDate || {}),
+        lte: end
+      }
+    }
+
+    // Get transactions and total count at the same time
+    const [transactions, total] = await prisma.$transaction([
+      prisma.transaction.findMany({
+        where,
+        include: {
+          account : {
+            select : {
+              id : true,
+              name : true,
+              type: true
+            }
+          },
+          category : {
+            select : {
+              id : true,
+              name : true,
+              type : true
+            }
           }
         },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            type: true
-          }
-        }
-      },
-      orderBy: {
-        transactionDate: 'desc'
+        orderBy : {
+          transactionDate : 'desc'
+        },
+        skip,
+        take : itemsPerPage
+      }),
+
+      prisma.transaction.count({
+        where
+      })
+    ])
+
+    const totalPages = Math.ceil(total / itemsPerPage)
+
+    return res.json({
+      success : true,
+      data : transactions,
+      pagination : {
+        currentPage,
+        itemsPerPage,
+        totalItems : total,
+        totalPages,
+        hasNextPage : currentPage < totalPages,
+        hasPreviousPage : currentPage > 1
       }
     })
 
-    return res.json({
-      success: true,
-      data: transactions
-    })
   } catch (error) {
     console.error('GET TRANSACTIONS ERROR:', error)
 
