@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import tailwindcss from '@tailwindcss/vite'
+
 export default defineNuxtConfig({
   
   modules: [
@@ -16,7 +18,7 @@ export default defineNuxtConfig({
     '/': { prerender: true }
   },
 
-  compatibilityDate: '2026-06-30',
+  compatibilityDate: '2026-08-22',
 
   eslint: {
     config: {
@@ -31,6 +33,12 @@ export default defineNuxtConfig({
     public: {
       apiBaseUrl: 'http://localhost:5000/api'
     }
+  },
+
+  vite: {
+    plugins: [
+      tailwindcss()
+    ]
   }
 
 })

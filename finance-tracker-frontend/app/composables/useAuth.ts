@@ -1,8 +1,8 @@
 export const useAuth = () => {
-  const api = useApi()
+  const { apiFetch } = useApi()
 
   const login = async (email: string, password: string) => {
-    return await api('/auth/login', {
+    return await apiFetch('/auth/login', {
       method: 'POST',
       body: {
         email,
@@ -12,13 +12,13 @@ export const useAuth = () => {
   }
 
   const logout = async () => {
-    await api('/auth/logout', {
+    await apiFetch('/auth/logout', {
       method: 'POST'
     })
   }
 
   const me = async () => {
-    return await api('/auth/me', {
+    return await apiFetch('/auth/me', {
       method: 'GET'
     })
   }
