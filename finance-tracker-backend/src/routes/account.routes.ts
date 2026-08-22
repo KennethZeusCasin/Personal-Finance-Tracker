@@ -42,4 +42,112 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
     }
 })
 
+router.get('/', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const accounts = await prisma.account.findMany({
+      where: {
+        userId: req.user!.userId
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    return res.json({
+      success: true,
+      data: accounts
+    })
+  } catch (error) {
+    console.error('GET ACCOUNTS ERROR:', error)
+
+    return res.status(500).json({
+      success: false,
+      message: 'Something went wrong.'
+    })
+  }
+})
+
+router.put('/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id)
+    const { name, type, balance } = req.body || {}
+
+    const account = await prisma.account.findFirst({
+      where: {
+        id,
+        userId: req.user!.userId
+      }
+    })
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found.'
+      })
+    }
+
+    const updatedAccount = await prisma.account.update({
+      where: {
+        id
+      },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(type !== undefined && { type }),
+        ...(balance !== undefined && { balance })
+      }
+    })
+
+    return res.json({
+      success: true,
+      message: 'Account updated successfully.',
+      data: updatedAccount
+    })
+  } catch (error) {
+    console.error('UPDATE ACCOUNT ERROR:', error)
+
+    return res.status(500).json({
+      success: false,
+      message: 'Something went wrong.'
+    })
+  }
+})
+
+router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id)
+
+    const account = await prisma.account.findFirst({
+      where: {
+        id,
+        userId: req.user!.userId
+      }
+    })
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found.'
+      })
+    }
+
+    await prisma.account.delete({
+      where: {
+        id
+      }
+    })
+
+    return res.json({
+      success: true,
+      message: 'Account deleted successfully.'
+    })
+  } catch (error) {
+    console.error('DELETE ACCOUNT ERROR:', error)
+
+    return res.status(500).json({
+      success: false,
+      message: 'Something went wrong.'
+    })
+  }
+})
+
 export default router
