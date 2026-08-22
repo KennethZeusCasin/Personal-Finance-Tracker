@@ -1,7 +1,13 @@
 <script setup lang="ts">
-defineProps<{
-    show: boolean
-}>()
+withDefaults(
+    defineProps<{
+        show: boolean
+        message?: string
+    }>(),
+    {
+        message: 'Loading...'
+    }
+)
 </script>
 
 <template>
@@ -11,7 +17,7 @@ defineProps<{
             class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
         >
             <div
-                class="flex flex-col items-center gap-4 rounded-xl bg-white px-8 py-6 shadow-xl"
+                class="flex min-w-[180px] flex-col items-center gap-4 rounded-xl bg-white px-8 py-6 shadow-xl"
             >
                 <!-- Spinner -->
                 <div
@@ -19,7 +25,7 @@ defineProps<{
                 ></div>
 
                 <p class="text-sm font-medium text-gray-700">
-                    Loading dashboard...
+                    {{ message }}
                 </p>
             </div>
         </div>
