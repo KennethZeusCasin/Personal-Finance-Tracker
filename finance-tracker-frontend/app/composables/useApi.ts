@@ -1,8 +1,20 @@
 export const useApi = () => {
   const config = useRuntimeConfig()
 
-  return $fetch.create({
-    baseURL: config.public.apiBaseUrl,
-    credentials: 'include'
-  })
+  const apiFetch = async <T>(
+    endpoint : string,
+    options : Parameters<typeof $fetch<T>>[1] = {}
+  ) => {
+    return await $fetch<T>(
+      `${config.public.apiBaseUrl}${endpoint}`,
+      {
+        ...options,
+        credentials : 'include'
+      }
+    )
+  }
+
+  return {
+    apiFetch
+  }
 }
