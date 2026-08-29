@@ -484,19 +484,13 @@ router.put('/:id', authenticate, async (req: AuthRequest, res) => {
 
 router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
   try {
-    const id = Number(req.params.id)
-
-    if (Number.isNaN(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid transaction ID.'
-      })
-    }
+    const { id } = req.params
+    const userId = req.user!.userId
 
     const transaction = await prisma.transaction.findFirst({
       where: {
-        id,
-        userId: req.user!.userId
+        id: Number(id),
+        userId
       }
     })
 
@@ -508,9 +502,10 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
-      const account = await tx.account.findUnique({
+      const account = await tx.account.findFirst({
         where: {
-          id: transaction.accountId
+          id: transaction.accountId,
+          userId
         }
       })
 
@@ -518,7 +513,6 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
         throw new Error('Account not found.')
       }
 
-      // Reverse the transaction
       const newBalance =
         transaction.type === 'INCOME'
           ? Number(account.balance) - Number(transaction.amount)
@@ -535,7 +529,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
 
       await tx.transaction.delete({
         where: {
-          id
+          id: transaction.id
         }
       })
     })

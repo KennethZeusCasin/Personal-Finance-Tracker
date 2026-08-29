@@ -48,9 +48,14 @@ export const useDashboard = () => {
 
     const error = ref<string | null>(null)
 
+    const delay = (ms: number) =>
+    new Promise(resolve => setTimeout(resolve, ms))
+
     const fetchDashboard = async () => {
         loading.value = true
         error.value = null
+
+        const startTime = Date.now()
 
         try {
             console.log('Fetching dashboard summary...')
@@ -78,6 +83,13 @@ export const useDashboard = () => {
 
             error.value = 'Unable to load dashboard data.'
         } finally {
+            const elapsed = Date.now() - startTime
+            const remaining = 1000 - elapsed
+
+            if (remaining > 0) {
+                await delay(remaining)
+            }
+            
             loading.value = false
         }
     }

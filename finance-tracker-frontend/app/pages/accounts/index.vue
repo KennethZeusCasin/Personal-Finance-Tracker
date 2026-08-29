@@ -36,9 +36,14 @@
     const saving = ref(false)
     const formError = ref<string | null>(null)
 
+    const delay = (ms: number) =>
+    new Promise(resolve => setTimeout(resolve, ms))
+
     const fetchAccounts = async () => {
         loading.value = true
         error.value = null
+
+        const startTime = Date.now()
 
         try {
             const response = await apiFetch<AccountsResponse>('/accounts')
@@ -49,6 +54,13 @@
             
             error.value = "Unable to load accounts."
         } finally {
+            const elapsed = Date.now() - startTime
+            const remaining = 1000 - elapsed
+
+            if (remaining > 0) {
+                await delay(remaining)
+            }
+            
             loading.value = false
         }
     }
@@ -168,121 +180,6 @@
 
 <template>
   <div class="min-h-screen bg-gray-100">
-
-    <!-- Sidebar -->
-    <aside
-      class="fixed inset-y-0 left-0 hidden w-64 border-r border-gray-200 bg-white lg:block"
-    >
-      <div class="flex h-full flex-col">
-
-        <!-- Logo -->
-        <div class="flex h-16 items-center border-b border-gray-200 px-6">
-          <h1 class="text-xl font-bold text-gray-900">
-            Finance Tracker
-          </h1>
-        </div>
-
-        <!-- Navigation -->
-        <nav class="flex-1 space-y-1 px-4 py-6">
-
-          <NuxtLink
-            to="/dashboard"
-            class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
-          >
-            <span>📊</span>
-            Dashboard
-          </NuxtLink>
-
-          <NuxtLink
-            to="/accounts"
-            class="flex items-center gap-3 rounded-lg bg-gray-900 px-4 py-3 text-sm font-medium text-white"
-          >
-            <span>💳</span>
-            Accounts
-          </NuxtLink>
-
-          <NuxtLink
-            to="/categories"
-            class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
-          >
-            <span>🏷️</span>
-            Categories
-          </NuxtLink>
-
-          <NuxtLink
-            to="/transactions"
-            class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
-          >
-            <span>💸</span>
-            Transactions
-          </NuxtLink>
-
-        </nav>
-
-        <!-- Bottom -->
-        <div class="border-t border-gray-200 p-4">
-
-          <button
-            class="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
-          >
-            <span>⚙️</span>
-            Settings
-          </button>
-
-          <button
-            class="mt-1 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
-          >
-            <span>🚪</span>
-            Logout
-          </button>
-
-        </div>
-
-      </div>
-    </aside>
-
-    <!-- Main -->
-    <div class="lg:pl-64">
-
-      <!-- Header -->
-      <header class="sticky top-0 z-10 border-b border-gray-200 bg-white">
-        <div class="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-
-          <h2 class="text-lg font-semibold text-gray-900">
-            Accounts
-          </h2>
-
-          <div class="flex items-center gap-3">
-
-            <button
-              class="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100"
-            >
-              🔔
-            </button>
-
-            <div class="flex items-center gap-3">
-              <div
-                class="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-sm font-semibold text-white"
-              >
-                K
-              </div>
-
-              <div class="hidden sm:block">
-                <p class="text-sm font-medium text-gray-900">
-                  Kenneth
-                </p>
-
-                <p class="text-xs text-gray-500">
-                  Personal Account
-                </p>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      </header>
-
       <!-- Content -->
       <main class="p-4 sm:p-6 lg:p-8">
 
@@ -299,13 +196,13 @@
             </p>
           </div>
 
-        <button
-            type="button"
-            @click="openAddModal"
-            class="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800"
-        >
-            + Add Account
-        </button>
+          <button
+              type="button"
+              @click="openAddModal"
+              class="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800"
+          >
+              + Add Account
+          </button>
 
         </div>
 
@@ -422,7 +319,7 @@
 
       </main>
 
-    </div>
+
     
     <!-- Add Account Modal -->
     <div
