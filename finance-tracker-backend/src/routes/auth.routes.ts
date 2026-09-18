@@ -142,6 +142,10 @@ router.post('/login', async (req, res) => {
 })
 
 router.get('/me', authenticate, async (req: AuthRequest, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+  res.set('Pragma', 'no-cache')
+  res.set('Expires', '0')
+
   try {
     const user = await prisma.user.findUnique({
       where : {
@@ -156,7 +160,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
     })
 
     if(!user){
-      return res.status(400).json({
+      return res.status(404).json({
         success : false,
         message : 'User not found.'
       })
@@ -169,11 +173,25 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('ME ERROR', error)
 
-    return res.status(400).json({
+    return res.status(500).json({
       success : false,
       message : 'Something went wrong.'
     })
   }
+})
+
+router.post('/logout', (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    path: '/'
+  })
+
+  return res.json({
+    success: true,
+    message: 'Logout successful.'
+  })
 })
 
 export default router
