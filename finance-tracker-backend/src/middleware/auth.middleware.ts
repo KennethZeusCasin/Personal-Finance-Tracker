@@ -17,7 +17,7 @@ export const authenticate = (
         const token = req.cookies.token
 
         if(!token){
-            return res.status(400).json({
+            return res.status(401).json({
                 success : false,
                 message : 'Unathorized'
             })
@@ -32,7 +32,7 @@ export const authenticate = (
         const decoded = jwt.verify(token, jwtSecret)
 
         if(typeof decoded === 'string'){
-            return res.status(400).json({
+            return res.status(401).json({
                 success : false,
                 message : 'Invalid token.'
             })
@@ -45,7 +45,7 @@ export const authenticate = (
 
         next()
     } catch (error) {
-        return res.status(400).json({
+        return res.status(401).json({
             success : false,
             message : 'Invalid or expired token.'
         })

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+    definePageMeta({
+    middleware: 'auth'
+    })
+    
     interface Account {
         id : number
         name : string

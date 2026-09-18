@@ -1,7 +1,9 @@
 <script setup lang="ts">
-defineProps<{
-  title: string
-}>()
+  defineProps<{
+    title: string
+  }>()
+
+  const { user } = useAuth()
 </script>
 
 <template>
@@ -22,12 +24,12 @@ defineProps<{
           <div
             class="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-sm font-semibold text-white"
           >
-            K
+           {{ user?.name?.charAt(0).toUpperCase() ?? 'U' }}
           </div>
 
           <div class="hidden sm:block">
             <p class="text-sm font-medium text-gray-900">
-              Kenneth
+              {{ user?.name ?? 'User' }}
             </p>
 
             <p class="text-xs text-gray-500">

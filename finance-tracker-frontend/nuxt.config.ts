@@ -14,10 +14,6 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  routeRules: {
-    '/': { prerender: true }
-  },
-
   compatibilityDate: '2026-08-22',
 
   eslint: {
@@ -32,6 +28,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBaseUrl: 'http://localhost:5000/api'
+        //  apiBaseUrl: 'https://gjsrv5jx-5000.asse.devtunnels.ms/'
     }
   },
 

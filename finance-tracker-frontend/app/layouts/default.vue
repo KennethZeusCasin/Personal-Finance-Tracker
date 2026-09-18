@@ -13,20 +13,25 @@
 </template>
 
 <script setup lang="ts">
-const route = useRoute()
+  const route = useRoute()
 
-const pageTitle = computed(() => {
-  switch (route.path) {
-    case '/dashboard':
+  const pageTitle = computed(() => {
+    if (route.path === '/dashboard') {
       return 'Dashboard'
-    case '/accounts':
+    }
+
+    if (route.path.startsWith('/accounts')) {
       return 'Accounts'
-    case '/categories':
+    }
+
+    if (route.path.startsWith('/categories')) {
       return 'Categories'
-    case '/transactions':
+    }
+
+    if (route.path.startsWith('/transactions')) {
       return 'Transactions'
-    default:
-      return 'Finance Tracker'
-  }
-})
+    }
+
+    return 'Finance Tracker'
+  })
 </script>

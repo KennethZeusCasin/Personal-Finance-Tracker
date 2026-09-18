@@ -1,4 +1,8 @@
 <script setup lang="ts">
+    definePageMeta({
+        middleware: 'auth'
+    })
+
     interface Category {
         id: number
         name: string

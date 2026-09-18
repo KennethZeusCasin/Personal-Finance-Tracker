@@ -1,4 +1,11 @@
 <script setup lang="ts">
+  definePageMeta({
+    middleware: 'auth'
+  })
+
+  const { user } = useAuth()
+  const { formatCurrency } = useCurrency()
+
   const {
     summary,
     recentTransactions,
@@ -6,6 +13,20 @@
     error,
     fetchDashboard
   } = useDashboard()
+
+  const greeting = computed(() => {
+    const hour = new Date().getHours()
+
+    if (hour < 12) {
+      return 'Good morning'
+    }
+
+    if (hour < 18) {
+      return 'Good afternoon'
+    }
+
+    return 'Good evening'
+  })
 
   onMounted(() => {
     fetchDashboard()
@@ -28,7 +49,7 @@
       <!-- Welcome -->
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-gray-900">
-          Good afternoon, Kenneth 👋
+          {{ greeting }}, {{ user?.name ?? 'User' }} 👋
         </h1>
 
         <p class="mt-1 text-sm text-gray-500">
@@ -49,9 +70,7 @@
               </p>
 
               <p class="mt-2 text-2xl font-bold text-gray-900">
-                ₱{{ summary?.totalBalance?.toLocaleString('en-PH', {
-                  minimumFractionDigits: 2
-                }) ?? '0.00' }}
+                {{ formatCurrency(summary?.totalBalance) }}
               </p>
             </div>
 
@@ -74,9 +93,7 @@
               </p>
 
               <p class="mt-2 text-2xl font-bold text-gray-900">
-                ₱{{ summary?.totalIncome?.toLocaleString('en-PH', {
-                  minimumFractionDigits: 2
-                }) ?? '0.00' }}
+                {{ formatCurrency(summary?.totalIncome) }}
               </p>
             </div>
 
@@ -99,9 +116,7 @@
               </p>
 
               <p class="mt-2 text-2xl font-bold text-gray-900">
-                ₱{{ summary?.totalExpenses?.toLocaleString('en-PH', {
-                  minimumFractionDigits: 2
-                }) ?? '0.00' }}
+                {{ formatCurrency(summary?.totalExpenses) }}
               </p>
             </div>
 
@@ -124,9 +139,7 @@
               </p>
 
               <p class="mt-2 text-2xl font-bold text-gray-900">
-                ₱{{ summary?.monthlyExpenses?.toLocaleString('en-PH', {
-                  minimumFractionDigits : 2
-                }) ?? '0.00' }}
+                {{ formatCurrency(summary?.monthlyExpenses) }}
               </p>
             </div>
 
@@ -209,11 +222,8 @@
                           : 'text-red-600'
                       "
                   >
-                    {{ transaction.type === 'INCOME' ? '+' : '-' }}₱{{ 
-                      Number(transaction.amount).toLocaleString('en-PH', {
-                        minimumFractionDigits : 2
-                      })
-                    }}
+                    {{ transaction.type === 'INCOME' ? '+' : '-' }}
+                    {{ formatCurrency(transaction.amount) }}
                   </p>
 
                   <p class="text-xs text-gray-500">
@@ -224,11 +234,20 @@
               </div>
 
             
-              <div 
-                v-if = "recentTransactions.length === 0 && !loading"
-                class = "px-6 py-10 text-center text-sm text-gray-500"
+              <div
+                v-if="!loading && recentTransactions.length === 0"
+                class="py-10 text-center"
               >
-                No Transactions yet.
+                <p class="text-gray-500">
+                  No transactions yet.
+                </p>
+
+                <UButton
+                  to="/transactions/create"
+                  class="mt-4"
+                >
+                  Add your first transaction
+                </UButton>
               </div>
 
               
