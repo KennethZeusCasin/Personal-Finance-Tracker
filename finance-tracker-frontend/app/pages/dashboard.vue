@@ -12,11 +12,13 @@
     monthlyOverview,
     expenseBreakdown,
     financialInsights,
-    loading,
-    overviewLoading,
-    error,
     fetchDashboard,
-    fetchOverview
+    fetchFilteredDashboard,
+    fetchSummary,
+    fetchRecentTransactions,
+    fetchMonthlyOverview,
+    fetchExpenseBreakdown,
+    fetchFinancialInsights
   } = useDashboard()
 
   const greeting = computed(() => {
@@ -37,8 +39,8 @@
 
   const selectedMonth = ref(now.getMonth() + 1)
   const selectedYear = ref(now.getFullYear())
-  const appliedMonth = computed(() => summary.value?.month ?? now.getMonth() + 1)
-  const appliedYear = computed(() => summary.value?.year ?? now.getFullYear())
+  const appliedMonth = ref(selectedMonth.value)
+  const appliedYear = ref(selectedYear.value)
 
   const months = [
     { label: 'January', value: 1 },
@@ -66,12 +68,28 @@
     `${months[appliedMonth.value - 1]?.label ?? ''} ${appliedYear.value}`
   )
 
+  const filterLoading = computed(() =>
+    summary.value.loading ||
+    monthlyOverview.value.loading ||
+    expenseBreakdown.value.loading ||
+    financialInsights.value.loading
+  )
+
   const applyFilter = async () => {
-    await fetchOverview(selectedMonth.value, selectedYear.value)
+    if (filterLoading.value) return
+
+    appliedMonth.value = selectedMonth.value
+    appliedYear.value = selectedYear.value
+    await fetchFilteredDashboard(appliedMonth.value, appliedYear.value)
   }
 
+  const retrySummary = () => fetchSummary(appliedMonth.value, appliedYear.value)
+  const retryMonthlyOverview = () => fetchMonthlyOverview(appliedYear.value)
+  const retryExpenseBreakdown = () => fetchExpenseBreakdown(appliedMonth.value, appliedYear.value)
+  const retryFinancialInsights = () => fetchFinancialInsights(appliedMonth.value, appliedYear.value)
+
   onMounted(() => {
-    fetchDashboard(selectedMonth.value, selectedYear.value)
+    fetchDashboard(appliedMonth.value, appliedYear.value)
   })
 </script>
 
@@ -79,15 +97,6 @@
   <div class="min-h-screen bg-gray-100">
     <!-- Page content -->
     <main class="p-4 sm:p-6 lg:p-8">
-      <LoadingModal :show="loading" />
-
-      <Toast
-        v-if="error"
-        :message="error"
-        type="error"
-        @close="error = null"
-      />
-
       <!-- Welcome -->
       <div class="mb-8">
         <h1 class="text-2xl font-bold text-gray-900">
@@ -108,10 +117,15 @@
         Total Balance
       </p>
 
-      <div v-if="loading || overviewLoading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+      <div v-if="summary.loading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+
+      <div v-else-if="summary.error" class="mt-3">
+        <p class="text-sm text-red-600">{{ summary.error }}</p>
+        <UButton size="sm" variant="outline" class="mt-2" @click="retrySummary">Retry</UButton>
+      </div>
 
       <h3 v-else class="mt-2 text-2xl font-bold text-gray-900">
-        {{ formatCurrency(summary?.totalBalance ?? 0) }}
+        {{ formatCurrency(summary.data?.totalBalance ?? 0) }}
       </h3>
 
       <p class="mt-2 text-xs text-gray-400">
@@ -125,10 +139,15 @@
         Monthly Income
       </p>
 
-      <div v-if="loading || overviewLoading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+      <div v-if="summary.loading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+
+      <div v-else-if="summary.error" class="mt-3">
+        <p class="text-sm text-red-600">{{ summary.error }}</p>
+        <UButton size="sm" variant="outline" class="mt-2" @click="retrySummary">Retry</UButton>
+      </div>
 
       <h3 v-else class="mt-2 text-2xl font-bold text-green-600">
-        {{ formatCurrency(summary?.monthlyIncome ?? 0) }}
+        {{ formatCurrency(summary.data?.monthlyIncome ?? 0) }}
       </h3>
 
       <p class="mt-2 text-xs text-gray-400">
@@ -142,10 +161,15 @@
         Monthly Expenses
       </p>
 
-      <div v-if="loading || overviewLoading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+      <div v-if="summary.loading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+
+      <div v-else-if="summary.error" class="mt-3">
+        <p class="text-sm text-red-600">{{ summary.error }}</p>
+        <UButton size="sm" variant="outline" class="mt-2" @click="retrySummary">Retry</UButton>
+      </div>
 
       <h3 v-else class="mt-2 text-2xl font-bold text-red-600">
-        {{ formatCurrency(summary?.monthlyExpenses ?? 0) }}
+        {{ formatCurrency(summary.data?.monthlyExpenses ?? 0) }}
       </h3>
 
       <p class="mt-2 text-xs text-gray-400">
@@ -159,16 +183,21 @@
         Net Savings
       </p>
 
-      <div v-if="loading || overviewLoading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+      <div v-if="summary.loading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+
+      <div v-else-if="summary.error" class="mt-3">
+        <p class="text-sm text-red-600">{{ summary.error }}</p>
+        <UButton size="sm" variant="outline" class="mt-2" @click="retrySummary">Retry</UButton>
+      </div>
 
       <h3
         v-else
         class="mt-2 text-2xl font-bold"
-        :class="(summary?.netSavings ?? 0) >= 0
+        :class="(summary.data?.netSavings ?? 0) >= 0
           ? 'text-blue-600'
           : 'text-red-600'"
       >
-        {{ formatCurrency(summary?.netSavings ?? 0) }}
+        {{ formatCurrency(summary.data?.netSavings ?? 0) }}
       </h3>
 
       <p class="mt-2 text-xs text-gray-400">
@@ -212,18 +241,26 @@
           </div>
 
           <div
-            v-if="loading || overviewLoading"
-            class="flex h-80 items-center justify-center"
+            v-if="monthlyOverview.loading"
+            class="h-80 animate-pulse rounded-lg bg-gray-100"
+          />
+
+          <div
+            v-else-if="monthlyOverview.error"
+            class="flex h-80 flex-col items-center justify-center gap-3 text-center"
           >
-            <p class="text-sm text-gray-500">
-              Loading chart...
-            </p>
+            <p class="text-sm text-red-600">{{ monthlyOverview.error }}</p>
+            <UButton variant="outline" @click="retryMonthlyOverview">Retry</UButton>
           </div>
 
           <DashboardMonthlyOverviewChart
-            v-else
-            :data="monthlyOverview"
+            v-else-if="monthlyOverview.data?.length"
+            :data="monthlyOverview.data"
           />
+
+          <div v-else class="flex h-80 items-center justify-center text-sm text-gray-500">
+            No monthly data available.
+          </div>
         </div>
 
 
@@ -258,7 +295,7 @@
               <select
                 id="overview-month"
                 v-model.number="selectedMonth"
-                :disabled="loading || overviewLoading"
+                :disabled="filterLoading"
                 class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
               >
                 <option
@@ -278,7 +315,7 @@
               <select
                 id="overview-year"
                 v-model.number="selectedYear"
-                :disabled="loading || overviewLoading"
+                :disabled="filterLoading"
                 class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
               >
                 <option
@@ -294,29 +331,33 @@
             <UButton
               type="submit"
               class="col-span-2 h-10 justify-center"
-              :loading="overviewLoading"
-              :disabled="loading || overviewLoading"
+              :loading="filterLoading"
+              :disabled="filterLoading"
             >
               Apply Filter
             </UButton>
 
             <p class="col-span-2 text-xs text-gray-500">
-              The selected period updates the summary cards and charts.
+              The selected period updates the summary cards, charts, and insights.
             </p>
           </form>
 
           <div
-            v-if="loading || overviewLoading"
-            class="flex h-80 items-center justify-center"
+            v-if="expenseBreakdown.loading"
+            class="h-80 animate-pulse rounded-lg bg-gray-100"
+          />
+
+          <div
+            v-else-if="expenseBreakdown.error"
+            class="flex h-80 flex-col items-center justify-center gap-3 text-center"
           >
-            <p class="text-sm text-gray-500">
-              Loading chart...
-            </p>
+            <p class="text-sm text-red-600">{{ expenseBreakdown.error }}</p>
+            <UButton variant="outline" @click="retryExpenseBreakdown">Retry</UButton>
           </div>
 
           <DashboardExpenseBreakdownChart
-            v-else-if="expenseBreakdown.length"
-            :data="expenseBreakdown"
+            v-else-if="expenseBreakdown.data?.length"
+            :data="expenseBreakdown.data"
           />
 
           <div
@@ -334,22 +375,32 @@
       <!-- Financial insights -->
       <div class="mt-6">
         <div
-          v-if="loading || overviewLoading"
+          v-if="financialInsights.loading"
           class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
         >
           <div class="h-64 animate-pulse rounded-lg bg-gray-100" />
         </div>
 
+        <div
+          v-else-if="financialInsights.error"
+          class="rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm"
+        >
+          <p class="text-sm text-red-600">{{ financialInsights.error }}</p>
+          <UButton variant="outline" class="mt-3" @click="retryFinancialInsights">
+            Retry Financial Insights
+          </UButton>
+        </div>
+
         <DashboardFinancialInsights
-          v-else-if="financialInsights"
-          :data="financialInsights"
+          v-else-if="financialInsights.data"
+          :data="financialInsights.data"
         />
 
         <div
           v-else
           class="rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm"
         >
-          <p class="text-sm text-gray-500">Financial insights are unavailable.</p>
+          <p class="text-sm text-gray-500">No financial insights available.</p>
         </div>
       </div>
 
@@ -383,11 +434,22 @@
 
             </div>
 
-            <div class="divide-y divide-gray-100">
+            <div v-if="recentTransactions.loading" class="space-y-3 p-6">
+              <div v-for="index in 3" :key="index" class="h-12 animate-pulse rounded bg-gray-100" />
+            </div>
+
+            <div v-else-if="recentTransactions.error" class="py-10 text-center">
+              <p class="text-sm text-red-600">{{ recentTransactions.error }}</p>
+              <UButton variant="outline" class="mt-3" @click="fetchRecentTransactions">
+                Retry Recent Transactions
+              </UButton>
+            </div>
+
+            <div v-else-if="recentTransactions.data?.length" class="divide-y divide-gray-100">
 
               <!-- Transaction -->
               <div 
-                v-for="transaction in recentTransactions"
+                v-for="transaction in recentTransactions.data"
                 :key="transaction.id"
                 class="flex items-center justify-between px-6 py-4"
               >
@@ -432,12 +494,9 @@
                 </div>
 
               </div>
+            </div>
 
-            
-              <div
-                v-if="!loading && recentTransactions.length === 0"
-                class="py-10 text-center"
-              >
+              <div v-else class="py-10 text-center">
                 <p class="text-gray-500">
                   No transactions yet.
                 </p>
@@ -449,9 +508,6 @@
                   Add your first transaction
                 </UButton>
               </div>
-
-              
-            </div>
         </div>
         </div>
 

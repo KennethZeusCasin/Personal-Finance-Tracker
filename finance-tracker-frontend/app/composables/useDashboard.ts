@@ -1,3 +1,5 @@
+import type { Ref } from 'vue'
+
 interface DashboardSummary {
   totalBalance: number
   monthlyIncome: number
@@ -8,34 +10,22 @@ interface DashboardSummary {
   year: number
 }
 
-interface DashboardResponse {
-  success: boolean
-  data: DashboardSummary
-}
-
 interface RecentTransaction {
-    id : number,
-    type : 'INCOME' | 'EXPENSE',
-    amount : string | number,
-    description : string | null,
-    transactionDate : string
-
-    account : {
-        id : number,
-        name : string,
-        type : string
-    }
-
-    category : {
-        id : number,
-        name : string,
-        type : string
-    }
-}
-
-interface RecentTransactionResponse {
-    success : boolean,
-    data : RecentTransaction[]
+  id: number
+  type: 'INCOME' | 'EXPENSE'
+  amount: string | number
+  description: string | null
+  transactionDate: string
+  account: {
+    id: number
+    name: string
+    type: string
+  }
+  category: {
+    id: number
+    name: string
+    type: string
+  }
 }
 
 interface MonthlyOverview {
@@ -44,20 +34,10 @@ interface MonthlyOverview {
   expenses: number
 }
 
-interface MonthlyOverviewResponse {
-  success: boolean
-  data: MonthlyOverview[]
-}
-
 interface ExpenseBreakdown {
   categoryId: number
   category: string
   amount: number
-}
-
-interface ExpenseBreakdownResponse {
-  success: boolean
-  data: ExpenseBreakdown[]
 }
 
 export interface FinancialInsights {
@@ -84,119 +64,131 @@ export interface FinancialInsights {
   }
 }
 
-interface FinancialInsightsResponse {
+interface ApiResponse<T> {
   success: boolean
-  data: FinancialInsights
+  data: T
+}
+
+type DashboardSection =
+  | 'summary'
+  | 'recentTransactions'
+  | 'monthlyOverview'
+  | 'expenseBreakdown'
+  | 'financialInsights'
+
+interface SectionState<T> {
+  data: T | null
+  loading: boolean
+  error: string | null
+}
+
+const createSection = <T>() => shallowRef<SectionState<T>>({
+  data: null,
+  loading: true,
+  error: null
+})
+
+const sectionNames: Record<DashboardSection, string> = {
+  summary: 'summary',
+  recentTransactions: 'recent transactions',
+  monthlyOverview: 'monthly overview',
+  expenseBreakdown: 'expense breakdown',
+  financialInsights: 'financial insights'
 }
 
 export const useDashboard = () => {
-    const { apiFetch } = useApi()
+  const { apiFetch } = useApi()
 
-    const summary = ref<DashboardSummary | null> (null)
+  const summary = createSection<DashboardSummary>()
+  const recentTransactions = createSection<RecentTransaction[]>()
+  const monthlyOverview = createSection<MonthlyOverview[]>()
+  const expenseBreakdown = createSection<ExpenseBreakdown[]>()
+  const financialInsights = createSection<FinancialInsights>()
 
-    const recentTransactions = ref<RecentTransaction[]>([])
+  // Each dashboard page instance owns its data, so another account cannot inherit it.
+  const requestVersions: Record<DashboardSection, number> = {
+    summary: 0,
+    recentTransactions: 0,
+    monthlyOverview: 0,
+    expenseBreakdown: 0,
+    financialInsights: 0
+  }
 
-    const monthlyOverview = ref<MonthlyOverview[]>([])
+  const loadSection = async <T>(
+    section: DashboardSection,
+    state: Ref<SectionState<T>>,
+    endpoint: string
+  ) => {
+    const requestId = ++requestVersions[section]
+    state.value = { ...state.value, loading: true, error: null }
 
-    const expenseBreakdown = ref<ExpenseBreakdown[]>([])
-    const financialInsights = ref<FinancialInsights | null>(null)
+    try {
+      const response = await apiFetch<ApiResponse<T>>(endpoint)
+      if (requestId !== requestVersions[section]) return
 
-    const loading = ref(false)
-    const overviewLoading = ref(false)
+      if (!response.success) {
+        throw new Error(`Unable to load ${sectionNames[section]}.`)
+      }
 
-    const error = ref<string | null>(null)
+      state.value = { data: response.data, loading: false, error: null }
+    } catch (error) {
+      if (requestId !== requestVersions[section]) return
 
-    const delay = (ms: number) =>
-    new Promise(resolve => setTimeout(resolve, ms))
-
-    const loadOverview = async (month: number, year: number) => {
-        const [summaryResponse, monthlyOverviewResponse, expenseBreakdownResponse, insightsResponse] = await Promise.all([
-            apiFetch<DashboardResponse>(
-                `/dashboard/summary?month=${month}&year=${year}`
-            ),
-            apiFetch<MonthlyOverviewResponse>(
-                `/dashboard/monthly-overview?year=${year}`
-            ),
-            apiFetch<ExpenseBreakdownResponse>(
-                `/dashboard/expense-breakdown?month=${month}&year=${year}`
-            ),
-            apiFetch<FinancialInsightsResponse>(
-                `/dashboard/financial-insights?month=${month}&year=${year}`
-            )
-        ])
-
-        summary.value = summaryResponse.data
-        monthlyOverview.value = monthlyOverviewResponse.data
-        expenseBreakdown.value = expenseBreakdownResponse.data
-        financialInsights.value = insightsResponse.data
+      const apiMessage = (error as { data?: { message?: string } })?.data?.message
+      state.value = {
+        ...state.value,
+        loading: false,
+        error: apiMessage
+          ? `Unable to load ${sectionNames[section]}: ${apiMessage}`
+          : `Unable to load ${sectionNames[section]}. Please try again.`
+      }
+      console.error(`${section} error:`, error)
     }
+  }
 
-    const fetchDashboard = async (
-        month?: number,
-        year?: number
-    ) => {
-        loading.value = true
-        error.value = null
+  const fetchSummary = (month: number, year: number) =>
+    loadSection('summary', summary, `/dashboard/summary?month=${month}&year=${year}`)
 
-        const startTime = Date.now()
+  const fetchRecentTransactions = () =>
+    loadSection('recentTransactions', recentTransactions, '/dashboard/recent-transactions')
 
-        const now = new Date()
+  const fetchMonthlyOverview = (year: number) =>
+    loadSection('monthlyOverview', monthlyOverview, `/dashboard/monthly-overview?year=${year}`)
 
-        const selectedMonth = month ?? now.getMonth() + 1
-        const selectedYear = year ?? now.getFullYear()
+  const fetchExpenseBreakdown = (month: number, year: number) =>
+    loadSection('expenseBreakdown', expenseBreakdown, `/dashboard/expense-breakdown?month=${month}&year=${year}`)
 
-        try {
-            const [transactionsResponse] = await Promise.all([
-                apiFetch<RecentTransactionResponse>(
-                    '/dashboard/recent-transactions'
-                ),
-                loadOverview(selectedMonth, selectedYear)
-            ])
+  const fetchFinancialInsights = (month: number, year: number) =>
+    loadSection('financialInsights', financialInsights, `/dashboard/financial-insights?month=${month}&year=${year}`)
 
-            recentTransactions.value = transactionsResponse.data
+  const fetchFilteredDashboard = async (month: number, year: number) => {
+    await Promise.allSettled([
+      fetchSummary(month, year),
+      fetchMonthlyOverview(year),
+      fetchExpenseBreakdown(month, year),
+      fetchFinancialInsights(month, year)
+    ])
+  }
 
-        } catch (err) {
-            console.error('Dashboard error:', err)
+  const fetchDashboard = async (month: number, year: number) => {
+    await Promise.allSettled([
+      fetchFilteredDashboard(month, year),
+      fetchRecentTransactions()
+    ])
+  }
 
-            error.value = 'Unable to load dashboard data.'
-        } finally {
-            const elapsed = Date.now() - startTime
-            const remaining = 1000 - elapsed
-
-            if (remaining > 0) {
-                await delay(remaining)
-            }
-            
-            loading.value = false
-        }
-    }
-
-    const fetchOverview = async (month: number, year: number) => {
-        overviewLoading.value = true
-        error.value = null
-
-        try {
-            await loadOverview(month, year)
-            return true
-        } catch (err) {
-            console.error('Dashboard overview error:', err)
-            error.value = 'Unable to load financial overview.'
-            return false
-        } finally {
-            overviewLoading.value = false
-        }
-    }
-
-    return {
-        summary,
-        recentTransactions,
-        monthlyOverview,
-        expenseBreakdown,
-        financialInsights,
-        loading,
-        overviewLoading,
-        error,
-        fetchDashboard,
-        fetchOverview
-    }
+  return {
+    summary,
+    recentTransactions,
+    monthlyOverview,
+    expenseBreakdown,
+    financialInsights,
+    fetchSummary,
+    fetchRecentTransactions,
+    fetchMonthlyOverview,
+    fetchExpenseBreakdown,
+    fetchFinancialInsights,
+    fetchFilteredDashboard,
+    fetchDashboard
+  }
 }
