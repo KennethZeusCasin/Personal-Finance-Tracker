@@ -9,9 +9,13 @@
   const {
     summary,
     recentTransactions,
+    monthlyOverview,
+    expenseBreakdown,
     loading,
+    overviewLoading,
     error,
-    fetchDashboard
+    fetchDashboard,
+    fetchOverview
   } = useDashboard()
 
   const greeting = computed(() => {
@@ -28,8 +32,45 @@
     return 'Good evening'
   })
 
+  const now = new Date()
+
+  const selectedMonth = ref(now.getMonth() + 1)
+  const selectedYear = ref(now.getFullYear())
+  const appliedMonth = computed(() => summary.value?.month ?? now.getMonth() + 1)
+  const appliedYear = computed(() => summary.value?.year ?? now.getFullYear())
+
+  const months = [
+    { label: 'January', value: 1 },
+    { label: 'February', value: 2 },
+    { label: 'March', value: 3 },
+    { label: 'April', value: 4 },
+    { label: 'May', value: 5 },
+    { label: 'June', value: 6 },
+    { label: 'July', value: 7 },
+    { label: 'August', value: 8 },
+    { label: 'September', value: 9 },
+    { label: 'October', value: 10 },
+    { label: 'November', value: 11 },
+    { label: 'December', value: 12 }
+  ]
+
+  const currentYear = now.getFullYear()
+
+  const years = Array.from(
+    { length: 5 },
+    (_, index) => currentYear - index
+  )
+
+  const periodLabel = computed(() =>
+    `${months[appliedMonth.value - 1]?.label ?? ''} ${appliedYear.value}`
+  )
+
+  const applyFilter = async () => {
+    await fetchOverview(selectedMonth.value, selectedYear.value)
+  }
+
   onMounted(() => {
-    fetchDashboard()
+    fetchDashboard(selectedMonth.value, selectedYear.value)
   })
 </script>
 
@@ -58,101 +99,237 @@
       </div>
 
       <!-- Summary cards -->
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
 
-        <!-- Balance -->
-        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div class="flex items-center justify-between">
+    <!-- Total Balance -->
+    <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <p class="text-sm font-medium text-gray-500">
+        Total Balance
+      </p>
 
-            <div>
-              <p class="text-sm font-medium text-gray-500">
-                Total Balance
-              </p>
+      <div v-if="loading || overviewLoading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
 
-              <p class="mt-2 text-2xl font-bold text-gray-900">
-                {{ formatCurrency(summary?.totalBalance) }}
-              </p>
-            </div>
+      <h3 v-else class="mt-2 text-2xl font-bold text-gray-900">
+        {{ formatCurrency(summary?.totalBalance ?? 0) }}
+      </h3>
 
-            <div
-              class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-xl"
-            >
-              💰
-            </div>
+      <p class="mt-2 text-xs text-gray-400">
+        Current account balance
+      </p>
+    </div>
 
+    <!-- Monthly Income -->
+    <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <p class="text-sm font-medium text-gray-500">
+        Monthly Income
+      </p>
+
+      <div v-if="loading || overviewLoading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+
+      <h3 v-else class="mt-2 text-2xl font-bold text-green-600">
+        {{ formatCurrency(summary?.monthlyIncome ?? 0) }}
+      </h3>
+
+      <p class="mt-2 text-xs text-gray-400">
+        {{ periodLabel }}
+      </p>
+    </div>
+
+    <!-- Monthly Expenses -->
+    <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <p class="text-sm font-medium text-gray-500">
+        Monthly Expenses
+      </p>
+
+      <div v-if="loading || overviewLoading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+
+      <h3 v-else class="mt-2 text-2xl font-bold text-red-600">
+        {{ formatCurrency(summary?.monthlyExpenses ?? 0) }}
+      </h3>
+
+      <p class="mt-2 text-xs text-gray-400">
+        {{ periodLabel }}
+      </p>
+    </div>
+
+    <!-- Net Savings -->
+    <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <p class="text-sm font-medium text-gray-500">
+        Net Savings
+      </p>
+
+      <div v-if="loading || overviewLoading" class="mt-3 h-8 animate-pulse rounded bg-gray-200" />
+
+      <h3
+        v-else
+        class="mt-2 text-2xl font-bold"
+        :class="(summary?.netSavings ?? 0) >= 0
+          ? 'text-blue-600'
+          : 'text-red-600'"
+      >
+        {{ formatCurrency(summary?.netSavings ?? 0) }}
+      </h3>
+
+      <p class="mt-2 text-xs text-gray-400">
+        Income minus expenses for {{ periodLabel }}
+      </p>
+    </div>
+
+  </div>
+
+      <div class="mt-6">
+        <h2 class="text-lg font-semibold text-gray-900">
+          Financial Overview
+        </h2>
+
+        <p class="text-sm text-gray-500">
+          View your income and expenses by period.
+        </p>
+      </div>
+
+      <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+
+        <!-- Monthly Overview -->
+        <div
+          class="
+            rounded-xl
+            border border-gray-200
+            bg-white
+            p-6
+            shadow-sm
+            xl:col-span-2
+          "
+        >
+          <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">
+              Monthly Overview
+            </h2>
+
+            <p class="text-sm text-gray-500">
+              Income vs expenses for {{ appliedYear }}
+            </p>
           </div>
+
+          <div
+            v-if="loading || overviewLoading"
+            class="flex h-80 items-center justify-center"
+          >
+            <p class="text-sm text-gray-500">
+              Loading chart...
+            </p>
+          </div>
+
+          <DashboardMonthlyOverviewChart
+            v-else
+            :data="monthlyOverview"
+          />
         </div>
 
-        <!-- Income -->
-        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div class="flex items-center justify-between">
 
-            <div>
-              <p class="text-sm font-medium text-gray-500">
-                Total Income
-              </p>
+        <!-- Expense Breakdown -->
+        <div
+          class="
+            rounded-xl
+            border border-gray-200
+            bg-white
+            p-6
+            shadow-sm
+          "
+        >
+          <div class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-900">
+              Expense Breakdown
+            </h2>
 
-              <p class="mt-2 text-2xl font-bold text-gray-900">
-                {{ formatCurrency(summary?.totalIncome) }}
-              </p>
-            </div>
-
-            <div
-              class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-xl"
-            >
-              📈
-            </div>
-
+            <p class="text-sm text-gray-500">
+              Expenses by category in {{ months[appliedMonth - 1]?.label }} {{ appliedYear }}
+            </p>
           </div>
-        </div>
 
-        <!-- Expenses -->
-        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div class="flex items-center justify-between">
-
-            <div>
-              <p class="text-sm font-medium text-gray-500">
-                Total Expenses
-              </p>
-
-              <p class="mt-2 text-2xl font-bold text-gray-900">
-                {{ formatCurrency(summary?.totalExpenses) }}
-              </p>
+          <form
+            class="mb-6 grid grid-cols-2 gap-3 border-b border-gray-100 pb-5"
+            @submit.prevent="applyFilter"
+          >
+            <div class="flex min-w-0 flex-col gap-1">
+              <label for="overview-month" class="text-xs font-medium text-gray-600">
+                Month
+              </label>
+              <select
+                id="overview-month"
+                v-model.number="selectedMonth"
+                :disabled="loading || overviewLoading"
+                class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+              >
+                <option
+                  v-for="month in months"
+                  :key="month.value"
+                  :value="month.value"
+                >
+                  {{ month.label }}
+                </option>
+              </select>
             </div>
 
-            <div
-              class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-xl"
+            <div class="flex min-w-0 flex-col gap-1">
+              <label for="overview-year" class="text-xs font-medium text-gray-600">
+                Year
+              </label>
+              <select
+                id="overview-year"
+                v-model.number="selectedYear"
+                :disabled="loading || overviewLoading"
+                class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+              >
+                <option
+                  v-for="year in years"
+                  :key="year"
+                  :value="year"
+                >
+                  {{ year }}
+                </option>
+              </select>
+            </div>
+
+            <UButton
+              type="submit"
+              class="col-span-2 h-10 justify-center"
+              :loading="overviewLoading"
+              :disabled="loading || overviewLoading"
             >
-              📉
-            </div>
+              Apply Filter
+            </UButton>
 
+            <p class="col-span-2 text-xs text-gray-500">
+              The selected period updates the summary cards and charts.
+            </p>
+          </form>
+
+          <div
+            v-if="loading || overviewLoading"
+            class="flex h-80 items-center justify-center"
+          >
+            <p class="text-sm text-gray-500">
+              Loading chart...
+            </p>
           </div>
-        </div>
 
-        <!-- Monthly expenses -->
-        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div class="flex items-center justify-between">
+          <DashboardExpenseBreakdownChart
+            v-else-if="expenseBreakdown.length"
+            :data="expenseBreakdown"
+          />
 
-            <div>
-              <p class="text-sm font-medium text-gray-500">
-                This Month
-              </p>
-
-              <p class="mt-2 text-2xl font-bold text-gray-900">
-                {{ formatCurrency(summary?.monthlyExpenses) }}
-              </p>
-            </div>
-
-            <div
-              class="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-100 text-xl"
-            >
-              📅
-            </div>
-
+          <div
+            v-else
+            class="flex h-80 items-center justify-center"
+          >
+            <p class="text-sm text-gray-500">
+              No expenses recorded for this period.
+            </p>
           </div>
         </div>
 
       </div>
+
 
       <!-- Content grid -->
       <div class="mt-6 grid gap-6 xl:grid-cols-3">

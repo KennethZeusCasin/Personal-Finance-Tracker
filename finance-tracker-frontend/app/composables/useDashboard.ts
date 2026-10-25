@@ -1,15 +1,16 @@
 interface DashboardSummary {
-    totalBalance : number,
-    totalIncome : number,
-    totalExpenses : number,
-    monthlyIncome : number,
-    monthlyExpenses : number,
-    transactionCount : number
+  totalBalance: number
+  monthlyIncome: number
+  monthlyExpenses: number
+  netSavings: number
+  transactionCount: number
+  month: number
+  year: number
 }
 
 interface DashboardResponse {
-    success : boolean,
-    data : DashboardSummary
+  success: boolean
+  data: DashboardSummary
 }
 
 interface RecentTransaction {
@@ -37,6 +38,28 @@ interface RecentTransactionResponse {
     data : RecentTransaction[]
 }
 
+interface MonthlyOverview {
+  month: string
+  income: number
+  expenses: number
+}
+
+interface MonthlyOverviewResponse {
+  success: boolean
+  data: MonthlyOverview[]
+}
+
+interface ExpenseBreakdown {
+  categoryId: number
+  category: string
+  amount: number
+}
+
+interface ExpenseBreakdownResponse {
+  success: boolean
+  data: ExpenseBreakdown[]
+}
+
 export const useDashboard = () => {
     const { apiFetch } = useApi()
 
@@ -44,37 +67,57 @@ export const useDashboard = () => {
 
     const recentTransactions = ref<RecentTransaction[]>([])
 
+    const monthlyOverview = ref<MonthlyOverview[]>([])
+
+    const expenseBreakdown = ref<ExpenseBreakdown[]>([])
+
     const loading = ref(false)
+    const overviewLoading = ref(false)
 
     const error = ref<string | null>(null)
 
     const delay = (ms: number) =>
     new Promise(resolve => setTimeout(resolve, ms))
 
-    const fetchDashboard = async () => {
+    const loadOverview = async (month: number, year: number) => {
+        const [summaryResponse, monthlyOverviewResponse, expenseBreakdownResponse] = await Promise.all([
+            apiFetch<DashboardResponse>(
+                `/dashboard/summary?month=${month}&year=${year}`
+            ),
+            apiFetch<MonthlyOverviewResponse>(
+                `/dashboard/monthly-overview?year=${year}`
+            ),
+            apiFetch<ExpenseBreakdownResponse>(
+                `/dashboard/expense-breakdown?month=${month}&year=${year}`
+            )
+        ])
+
+        summary.value = summaryResponse.data
+        monthlyOverview.value = monthlyOverviewResponse.data
+        expenseBreakdown.value = expenseBreakdownResponse.data
+    }
+
+    const fetchDashboard = async (
+        month?: number,
+        year?: number
+    ) => {
         loading.value = true
         error.value = null
 
         const startTime = Date.now()
 
+        const now = new Date()
+
+        const selectedMonth = month ?? now.getMonth() + 1
+        const selectedYear = year ?? now.getFullYear()
+
         try {
-            console.log('Fetching dashboard summary...')
-
-            const summaryResponse = await apiFetch<DashboardResponse>(
-            '/dashboard/summary'
-            )
-
-            console.log('Summary response:', summaryResponse)
-
-            summary.value = summaryResponse.data
-
-            console.log('Fetching recent transactions...')
-
-            const transactionsResponse = await apiFetch<RecentTransactionResponse>(
-            '/dashboard/recent-transactions'
-            )
-
-            console.log('Recent transactions response:', transactionsResponse)
+            const [transactionsResponse] = await Promise.all([
+                apiFetch<RecentTransactionResponse>(
+                    '/dashboard/recent-transactions'
+                ),
+                loadOverview(selectedMonth, selectedYear)
+            ])
 
             recentTransactions.value = transactionsResponse.data
 
@@ -94,11 +137,31 @@ export const useDashboard = () => {
         }
     }
 
+    const fetchOverview = async (month: number, year: number) => {
+        overviewLoading.value = true
+        error.value = null
+
+        try {
+            await loadOverview(month, year)
+            return true
+        } catch (err) {
+            console.error('Dashboard overview error:', err)
+            error.value = 'Unable to load financial overview.'
+            return false
+        } finally {
+            overviewLoading.value = false
+        }
+    }
+
     return {
         summary,
         recentTransactions,
+        monthlyOverview,
+        expenseBreakdown,
         loading,
+        overviewLoading,
         error,
-        fetchDashboard
+        fetchDashboard,
+        fetchOverview
     }
 }
