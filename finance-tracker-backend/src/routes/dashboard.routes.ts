@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from '../lib/prisma.js'
+import { calculateFinancialInsights } from '../lib/financial-insights.js'
 import {
     authenticate,
     AuthRequest
@@ -156,6 +157,57 @@ router.get('/recent-transactions', authenticate, async ( req: AuthRequest, res) 
             message : 'Something went wrong.'
         })
     }
+})
+
+router.get('/financial-insights', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId
+    const now = new Date()
+    const month = req.query.month === undefined
+      ? now.getMonth() + 1
+      : Number(req.query.month)
+    const year = req.query.year === undefined
+      ? now.getFullYear()
+      : Number(req.query.year)
+
+    if (!Number.isInteger(month) || month < 1 || month > 12 ||
+        !Number.isInteger(year) || year < 2000 || year > 2100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid month or year.'
+      })
+    }
+
+    const previousStart = new Date(Date.UTC(year, month - 2, 1))
+    const currentEnd = new Date(Date.UTC(year, month, 1))
+
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        userId,
+        transactionDate: {
+          gte: previousStart,
+          lt: currentEnd
+        }
+      },
+      select: {
+        type: true,
+        amount: true,
+        transactionDate: true
+      }
+    })
+
+    return res.json({
+      success: true,
+      data: calculateFinancialInsights(transactions, month, year)
+    })
+  } catch (error) {
+    console.error('FINANCIAL INSIGHTS ERROR:', error)
+
+    return res.status(500).json({
+      success: false,
+      message: 'Something went wrong.'
+    })
+  }
 })
 
 router.get(
