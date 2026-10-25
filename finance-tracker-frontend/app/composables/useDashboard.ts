@@ -60,6 +60,35 @@ interface ExpenseBreakdownResponse {
   data: ExpenseBreakdown[]
 }
 
+export interface FinancialInsights {
+  period: {
+    month: number
+    year: number
+  }
+  current: {
+    income: number
+    expenses: number
+    netSavings: number
+  }
+  previous: {
+    income: number
+    expenses: number
+    netSavings: number
+  }
+  savingsRate: number | null
+  expenseRatio: number | null
+  comparison: {
+    income: number | null
+    expenses: number | null
+    netSavings: number | null
+  }
+}
+
+interface FinancialInsightsResponse {
+  success: boolean
+  data: FinancialInsights
+}
+
 export const useDashboard = () => {
     const { apiFetch } = useApi()
 
@@ -70,6 +99,7 @@ export const useDashboard = () => {
     const monthlyOverview = ref<MonthlyOverview[]>([])
 
     const expenseBreakdown = ref<ExpenseBreakdown[]>([])
+    const financialInsights = ref<FinancialInsights | null>(null)
 
     const loading = ref(false)
     const overviewLoading = ref(false)
@@ -80,7 +110,7 @@ export const useDashboard = () => {
     new Promise(resolve => setTimeout(resolve, ms))
 
     const loadOverview = async (month: number, year: number) => {
-        const [summaryResponse, monthlyOverviewResponse, expenseBreakdownResponse] = await Promise.all([
+        const [summaryResponse, monthlyOverviewResponse, expenseBreakdownResponse, insightsResponse] = await Promise.all([
             apiFetch<DashboardResponse>(
                 `/dashboard/summary?month=${month}&year=${year}`
             ),
@@ -89,12 +119,16 @@ export const useDashboard = () => {
             ),
             apiFetch<ExpenseBreakdownResponse>(
                 `/dashboard/expense-breakdown?month=${month}&year=${year}`
+            ),
+            apiFetch<FinancialInsightsResponse>(
+                `/dashboard/financial-insights?month=${month}&year=${year}`
             )
         ])
 
         summary.value = summaryResponse.data
         monthlyOverview.value = monthlyOverviewResponse.data
         expenseBreakdown.value = expenseBreakdownResponse.data
+        financialInsights.value = insightsResponse.data
     }
 
     const fetchDashboard = async (
@@ -158,6 +192,7 @@ export const useDashboard = () => {
         recentTransactions,
         monthlyOverview,
         expenseBreakdown,
+        financialInsights,
         loading,
         overviewLoading,
         error,

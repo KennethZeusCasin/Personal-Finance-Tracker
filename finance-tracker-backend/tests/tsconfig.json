@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "./dist",
+    "types": ["node"]
+  },
+  "include": [
+    "./financial-insights.test.ts",
+    "../src/lib/financial-insights.ts"
+  ]
+}

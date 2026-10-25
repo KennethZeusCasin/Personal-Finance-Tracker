@@ -11,6 +11,7 @@
     recentTransactions,
     monthlyOverview,
     expenseBreakdown,
+    financialInsights,
     loading,
     overviewLoading,
     error,
@@ -328,6 +329,28 @@
           </div>
         </div>
 
+      </div>
+
+      <!-- Financial insights -->
+      <div class="mt-6">
+        <div
+          v-if="loading || overviewLoading"
+          class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+        >
+          <div class="h-64 animate-pulse rounded-lg bg-gray-100" />
+        </div>
+
+        <DashboardFinancialInsights
+          v-else-if="financialInsights"
+          :data="financialInsights"
+        />
+
+        <div
+          v-else
+          class="rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm"
+        >
+          <p class="text-sm text-gray-500">Financial insights are unavailable.</p>
+        </div>
       </div>
 
 
